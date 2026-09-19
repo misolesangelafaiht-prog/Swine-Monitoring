@@ -18,10 +18,18 @@ body{font-family:Arial,sans-serif;background:#f0f4f0;color:#1a1a1a}
 .tab{padding:7px 14px;border-radius:8px;border:1px solid #cde0cd;background:#fff;color:#555;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
 .tab.active{background:#2e7d32;color:#fff;border-color:#2e7d32}
 .pg{display:none}.pg.on{display:block}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
-.card{background:#fff;border:1px solid #dde8dd;border-radius:12px;padding:12px 14px}
-.clabel{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-.cval{font-size:22px;font-weight:600;color:#1a1a1a}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:14px;margin-bottom:18px}
+.card{--card-accent:#2e7d32;position:relative;min-height:128px;background:linear-gradient(145deg,#fff 0%,#fbfdfb 100%);border:1px solid #dbe8dc;border-radius:16px;padding:15px 16px 14px;box-shadow:0 3px 10px rgba(28,72,34,.06);overflow:hidden;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.card::before{content:"";position:absolute;top:0;left:0;width:100%;height:4px;background:var(--card-accent)}
+.card:hover{transform:translateY(-2px);border-color:#bed6c0;box-shadow:0 9px 20px rgba(28,72,34,.11)}
+.card:nth-child(2){--card-accent:#4f7fbe}.card:nth-child(3){--card-accent:#c98a24}.card:nth-child(4){--card-accent:#8a5fb2}.card:nth-child(5){--card-accent:#3b8f8b}.card:nth-child(6){--card-accent:#d06464}.card:nth-child(7){--card-accent:#5b7c9e}.card:nth-child(8){--card-accent:#547a55}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.clabel{font-size:10px;color:#657567;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.card-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--card-accent) 12%,white);color:var(--card-accent);font-size:15px;line-height:1;flex-shrink:0}
+.cval{font-size:24px;font-weight:700;letter-spacing:-.03em;color:#203024;line-height:1.05}
+.card .cval+div{font-size:11px!important;color:#819083!important;margin-top:8px!important;line-height:1.25}
+.card .cval[style]{font-size:16px!important;margin-top:1px!important;letter-spacing:-.01em;line-height:1.2}
+@media(max-width:540px){.cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.card{min-height:119px;padding:13px}.card-head{margin-bottom:10px}.cval{font-size:21px}.card-icon{width:27px;height:27px;font-size:13px}}
 .cval.danger{color:#c62828}
 .cval.warning{color:#e65100}
 .cval.success{color:#2e7d32}
@@ -124,42 +132,42 @@ td{padding:8px 10px;border-top:1px solid #eef3ee}
     </div>
     <div class="cards">
       <div class="card">
-        <div class="clabel">Max temperature</div>
+        <div class="card-head"><div class="clabel">Max temperature</div><span class="card-icon" aria-hidden="true">♨</span></div>
         <div class="cval" id="vmax">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">Thermal sensor</div>
       </div>
       <div class="card">
-        <div class="clabel">Avg temperature</div>
+        <div class="card-head"><div class="clabel">Avg temperature</div><span class="card-icon" aria-hidden="true">◌</span></div>
         <div class="cval" id="vavg">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px" id="vpigs">-- pigs monitored</div>
       </div>
       <div class="card">
-        <div class="clabel">Ammonia level</div>
+        <div class="card-head"><div class="clabel">Ammonia level</div><span class="card-icon" aria-hidden="true">◈</span></div>
         <div class="cval" id="vnh3">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">Safe below 25ppm</div>
       </div>
       <div class="card">
-        <div class="clabel">ML fever risk</div>
+        <div class="card-head"><div class="clabel">ML fever risk</div><span class="card-icon" aria-hidden="true">⌁</span></div>
         <div class="cval success" id="vrisk">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">Random Forest ML</div>
       </div>
       <div class="card">
-        <div class="clabel">Trend</div>
+        <div class="card-head"><div class="clabel">Trend</div><span class="card-icon" aria-hidden="true">↗</span></div>
         <div class="cval" style="font-size:15px;margin-top:4px" id="vtrend">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">Last 5 readings</div>
       </div>
       <div class="card">
-        <div class="clabel">Hot zone</div>
+        <div class="card-head"><div class="clabel">Hot zone</div><span class="card-icon" aria-hidden="true">⌖</span></div>
         <div class="cval" style="font-size:15px;margin-top:4px" id="vzone">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">Sensor location</div>
       </div>
       <div class="card">
-        <div class="clabel">Pig detection</div>
+        <div class="card-head"><div class="clabel">Pig detection</div><span class="card-icon" aria-hidden="true">◉</span></div>
         <div class="cval" style="font-size:14px;margin-top:4px" id="vpig">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px" id="vpigconf">-- confidence</div>
       </div>
       <div class="card">
-        <div class="clabel">Activity state</div>
+        <div class="card-head"><div class="clabel">Activity state</div><span class="card-icon" aria-hidden="true">◔</span></div>
         <div class="cval" style="font-size:14px;margin-top:4px" id="vactstate">--</div>
         <div style="font-size:11px;color:#777;margin-top:4px">From webcam + thermal</div>
       </div>
