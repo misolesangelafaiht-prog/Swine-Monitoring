@@ -1,0 +1,161 @@
+g
+import time
+import numpy as np
+
+camera = None
+camera_frame = None
+camera_lock = threading.Lock()
+camera_running = False
+current_thermal = None
+thermal_lock = threading.Lock()
+
+
+def update_thermal(frame, stats):
+    global current_thermal
+    with thermal_lock:
+        current_thermal = {
+            "frame": frame,
+            "stats": stats
+        }
+
+
+def find_hot_zones(frame, threshold=36.0):
+    zones = []
+    if frame is None:
+        return zones
+    arr = np.array(frame)
+    rows, cols = arr.shape
+    visited = [[False] * cols for _ in range(rows)]
+    for r in range(rows):
+        for c in range(cols):
+            if arr[r][c] >= threshold and not visited[r][c]:
+                zone_temps = []
+                cells = []
+                stack = [(r, c)]
+                while stack:
+                    cr, cc = stack.pop()
+                    if cr < 0 or cr >= rows:
+                        continue
+                    if cc < 0 or cc >= cols:
+                        continue
+                    if visited[cr][cc]:
+                        continue
+                    if arr[cr][cc] < threshold:
+                        continue
+                    visited[cr][cc] = True
+                    zone_temps.append(arr[cr][cc])
+                    cells.append((cr, cc))
+                    stack.extend([
+                        (cr + 1, cc),
+                        (cr - 1, cc),
+                        (cr, cc + 1),
+                        (cr, cc - 1)
+                    ])
+                if len(cells) >= 4:
+                    min_r = min(x[0] for x in cells)
+                    max_r = max(x[0] for x in cells)
+                    min_c = min(x[1] for x in cells)
+                    max_c = max(x[1] for x in cells)
+                    max_temp = round(float(max(zone_temps)), 1)
+                    zones.append({
+                        "min_row": min_r,
+                        "max_row": max_r,
+                        "min_col": min_c,
+                        "max_col": max_c,
+                        "max_temp": max_temp
+                    })
+    return zones
+
+
+def draw_boxes(cam_frame, thermal_frame, cam_w, cam_h):
+    if thermal_frame is None:
+        return cam_frame
+    try:
+        zones = find_hot_zones(thermal_frame, threshold=36.0)
+        thermal_rows = 24
+        thermal_cols = 32
+        for zone in zones:
+            x1 = int((zone["min_col"] / thermal_cols) * cam_w)
+            y1 = int((zone["min_row"] / thermal_rows) * cam_h)
+            x2 = int((zone["max_col"] / thermal_cols) * cam_w)
+            y2 = int((zone["max_row"] / thermal_rows) * cam_h)
+            temp = zone["max_temp"]
+            if temp >= 40.5:
+                color = (0, 0, 255)
+                label = "FEVER " + str(temp) + "C"
+            elif temp >= 40.0:
+                color = (0, 165, 255)
+                label = "HIGH " + str(temp) + "C"
+            else:
+                color = (0, 255, 0)
+                label = str(temp) + "C"
+            cv2.rectangle(cam_frame, (x1, y1), (x2, y2), color, 2)
+            label_y = y1 - 6
+            if label_y < 20:
+                label_y = y2 + 16
+            box_w = len(label) * 9
+            cv2.rectangle(cam_frame, (x1, y1 - 22), (x1 + box_w, y1), color, -1)
+            cv2.putText(
+                cam_frame, label,
+                (x1 + 2, label_y),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (255, 255, 255), 1
+            )
+    except Exception as e:
+        print("[camera] Box error: " + str(e))
+    return cam_frame
+
+
+def start_camera():
+    global camera, camera_frame, camera_running
+    try:
+        camera = cv2.VideoCapture(0, cv2.CAP_V4L2)
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 480)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 360)
+        camera.set(cv2.CAP_PROP_FPS, 30)
+        camera.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        if not camera.isOpened():
+            print("[camera] Webcam not found")
+            return
+        camera_running = True
+        print("[camera] Webcam started!")
+        while camera_running:
+            ret, frame = camera.read()
+            if ret:
+                h, w = frame.shape[:2]
+                with thermal_lock:
+                    thermal_data = current_thermal
+                if thermal_data is not None:
+                    frame = draw_boxes(frame, thermal_data["frame"], w, h)
+                ret2, buffer = cv2.imencode(
+                    '.jpg', frame,
+                    [cv2.IMWRITE_JPEG_QUALITY, 55]
+                )
+                if ret2:
+                    with camera_lock:
+                        camera_frame = base64.b64encode(buffer).decode('utf-8')
+            else:
+                print("[camera] Frame read failed — retrying...")
+                time.sleep(0.5)
+            time.sleep(0.03)
+    except Exception as e:
+        print("[camera] Error: " + str(e))
+        import traceback
+        traceback.print_exc()
+
+
+def get_camera_frame():
+    for _ in range(30):  # wait up to 3 seconds
+        with camera_lock:
+            if camera_frame is not None:
+                return camera_frame
+        time.sleep(0.1)
+    return None
+
+
+def stop_camera():
+    global camera_running, camera
+    camera_running = False
+    if camera:
+        camera.release()
+    print("[camera] Stopped")

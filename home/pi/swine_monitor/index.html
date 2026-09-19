@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SwineGuard Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f0f4f0;color:#1a1a1a}
+.topbar{background:#fff;border-bottom:1px solid #dde8dd;padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:38px;height:38px;background:#e8f5e9;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.logo-title{font-size:15px;font-weight:600;color:#1b5e20}
+.logo-sub{font-size:11px;color:#666;margin-top:1px}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:7px 14px;border-radius:8px;border:1px solid #cde0cd;background:#fff;color:#555;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.tab.active{background:#2e7d32;color:#fff;border-color:#2e7d32}
+.pg{display:none}.pg.on{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+.card{background:#fff;border:1px solid #dde8dd;border-radius:12px;padding:12px 14px}
+.clabel{font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.cval{font-size:22px;font-weight:600;color:#1a1a1a}
+.cval.danger{color:#c62828}
+.cval.warning{color:#e65100}
+.cval.success{color:#2e7d32}
+.alert{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;display:flex;align-items:center;gap:8px;font-weight:500}
+.alert.danger{background:#ffebee;border:1px solid #ef9a9a;color:#c62828}
+.alert.warning{background:#fff3e0;border:1px solid #ffcc02;color:#e65100}
+.alert.success{background:#e8f5e9;border:1px solid #a5d6a7;color:#2e7d32}
+.alert.info{background:#e3f2fd;border:1px solid #90caf9;color:#0d47a1}
+.sec{background:#fff;border:1px solid #dde8dd;border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.st{font-size:11px;color:#666;text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:540px){.two{grid-template-columns:1fr}}
+canvas.th{width:100%;border-radius:8px;image-rendering:pixelated;border:1px solid #dde8dd}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600}
+.bs{background:#e8f5e9;color:#1b5e20}
+.bw{background:#fff3e0;color:#bf360c}
+.bd{background:#ffebee;color:#b71c1c}
+.bi{background:#e3f2fd;color:#0d47a1}
+.gauge-bar{width:100%;height:8px;background:#e0e0e0;border-radius:4px;overflow:hidden;margin:6px 0}
+.gauge-fill{height:100%;border-radius:4px;transition:width .5s,background .5s}
+.pig-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid #eef3ee}
+.pig-row:last-child{border-bottom:none}
+.pig-icon{width:32px;height:32px;background:#e8f5e9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.pulse{width:8px;height:8px;border-radius:50%;background:currentColor;animation:blink 1.5s infinite;display:inline-block;margin-right:6px}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;background:#f5f8f5;color:#555;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+td{padding:8px 10px;border-top:1px solid #eef3ee}
+.ref-row{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0}
+.ref-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+/* Activity tracker specific styles */
+.activity-hero{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+@media(max-width:600px){.activity-hero{grid-template-columns:1fr}}
+.cam-box{background:#111;border-radius:12px;overflow:hidden;position:relative;min-height:220px;display:flex;align-items:center;justify-content:center}
+.cam-box img{width:100%;display:block}
+.cam-placeholder{color:#555;font-size:13px;text-align:center;padding:20px}
+.cam-overlay{position:absolute;top:8px;left:8px;display:flex;flex-direction:column;gap:4px}
+.cam-badge{background:rgba(0,0,0,0.65);color:#fff;font-size:11px;padding:3px 8px;border-radius:6px;font-weight:600}
+.cam-badge.live{background:rgba(46,125,50,0.85)}
+.cam-badge.warn{background:rgba(198,40,40,0.85)}
+
+.state-card{display:flex;flex-direction:column;gap:10px}
+.state-pill{display:flex;align-items:center;justify-content:space-between;background:#f5f8f5;border-radius:10px;padding:12px 14px}
+.state-pill .s-label{font-size:12px;color:#777}
+.state-pill .s-val{font-size:15px;font-weight:700}
+.state-pill.active-state{background:#e8f5e9}
+.state-pill.sleeping-state{background:#e3f2fd}
+.state-pill.lethargic-state{background:#fff3e0}
+.state-pill.fever-state{background:#ffebee}
+
+.activity-bar-wrap{margin:6px 0}
+.activity-bar-label{display:flex;justify-content:space-between;font-size:11px;color:#777;margin-bottom:4px}
+.activity-bar{height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden}
+.activity-bar-fill{height:100%;border-radius:5px;transition:width .6s,background .4s}
+
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #eef3ee;font-size:12px}
+.tl-row:last-child{border-bottom:none}
+.tl-dot{width:9px;height:9px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.tl-time{color:#aaa;width:54px;flex-shrink:0}
+.tl-msg{color:#444}
+
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:12px}
+.score-cell{background:#f5f8f5;border-radius:8px;padding:10px 12px}
+.score-cell .sc-lbl{font-size:10px;color:#888;text-transform:uppercase;margin-bottom:3px}
+.score-cell .sc-val{font-size:20px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">🐷</div>
+    <div>
+      <div class="logo-title">SwineGuard Monitor</div>
+      <div class="logo-sub">IoT Thermal + Ammonia Detection System</div>
+    </div>
+  </div>
+  <div style="text-align:right;font-size:12px;color:#666">
+    Live monitoring<br>
+    <span style="font-weight:600;color:#1a1a1a" id="clk">--:--:--</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" onclick="go(this,'overview')">Overview</button>
+    <button class="tab" onclick="go(this,'activity')">Activity tracker</button>
+    <button class="tab" onclick="go(this,'thermal')">Thermal camera</button>
+    <button class="tab" onclick="go(this,'ammonia')">Ammonia sensor</button>
+    <button class="tab" onclick="go(this,'pigs')">Pig status</button>
+    <button class="tab" onclick="go(this,'history')">History log</button>
+  </div>
+
+  <!-- ═══════════════════════════ OVERVIEW TAB ═══════════════════════════ -->
+  <div class="pg on" id="overview">
+    <div id="abar" class="alert success">
+      <span class="pulse"></span>
+      <span id="amsg">System starting...</span>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="clabel">Max temperature</div>
+        <div class="cval" id="vmax">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Thermal sensor</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Avg temperature</div>
+        <div class="cval" id="vavg">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px" id="vpigs">-- pigs monitored</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Ammonia level</div>
+        <div class="cval" id="vnh3">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Safe below 25ppm</div>
+      </div>
+      <div class="card">
+        <div class="clabel">ML fever risk</div>
+        <div class="cval success" id="vrisk">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Random Forest ML</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Trend</div>
+        <div class="cval" style="font-size:15px;margin-top:4px" id="vtrend">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Last 5 readings</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Hot zone</div>
+        <div class="cval" style="font-size:15px;margin-top:4px" id="vzone">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">Sensor location</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Pig detection</div>
+        <div class="cval" style="font-size:14px;margin-top:4px" id="vpig">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px" id="vpigconf">-- confidence</div>
+      </div>
+      <div class="card">
+        <div class="clabel">Activity state</div>
+        <div class="cval" style="font-size:14px;margin-top:4px" id="vactstate">--</div>
+        <div style="font-size:11px;color:#777;margin-top:4px">From webcam + thermal</div>
+      </div>
+    </div>
+    <div class="two">
+      <div class="sec">
+        <div class="st">Live thermal heatmap</div>
+        <canvas id="tc" class="th" width="320" height="120"></canvas>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:#888">
+          <span>25C cool</span>
+          <div style="flex:1;height:4px;margin:5px 8px 0;border-radius:2px;background:linear-gradient(to right,#2166ac,#4dac26,#ffffbf,#f4a582,#b2182b)"></div>
+          <span>42C hot</span>
+        </div>
+      </div>
+      <div class="sec">
+        <div class="st">Ammonia level gauge</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span style="color:#777">Current level</span>
+          <span style="font-weight:600" id="nh3v">-- ppm</span>
+        </div>
+        <div class="gauge-bar">
+          <div class="gauge-fill" id="nh3b" style="width:0%;background:#2e7d32"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:12px">
+          <span>0</span><span>25ppm</span><span>35ppm</span><span>50ppm</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <div style="display:flex;justify-content:space-between;font-size:12px">
+            <span style="color:#777">Safe zone</span><span class="badge bs">0 - 25 ppm</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px">
+            <span style="color:#777">Warning zone</span><span class="badge bw">25 - 35 ppm</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px">
+            <span style="color:#777">Danger zone</span><span class="badge bd">above 35 ppm</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="st">Pig health summary</div>
+      <div id="pig-summary"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ ACTIVITY TRACKER TAB ═══════════════════════════ -->
+  <div class="pg" id="activity">
+    <div id="act-alert" class="alert info">
+      <span class="pulse"></span>
+      <span id="act-msg">Waiting for activity data...</span>
+    </div>
+
+    <div class="activity-hero">
+      <!-- Live webcam with bounding boxes from camera.py -->
+      <div class="sec" style="padding:0;overflow:hidden;border-radius:12px">
+        <div class="cam-box" id="cam-wrap">
+          <div class="cam-overlay">
+            <div class="cam-badge live" id="cam-live-badge">⏺ LIVE</div>
+            <div class="cam-badge" id="cam-state-badge">Loading...</div>
+          </div>
+          <img id="act-cam-img" style="display:none;width:100%" alt="Webcam with heat boxes">
+          <div class="cam-placeholder" id="act-cam-placeholder">
+            📷 Connecting to webcam...<br>
+            <span style="font-size:11px;margin-top:6px;display:block;color:#444">
+              Thermal bounding boxes will appear<br>when pig is detected
+            </span>
+          </div>
+        </div>
+        <div style="padding:10px 12px;background:#fff;border-top:1px solid #dde8dd">
+          <div style="font-size:11px;color:#666" id="cam-detail-status">Camera not yet connected</div>
+        </div>
+      </div>
+
+      <!-- Activity state panel -->
+      <div class="sec state-card">
+        <div class="st">Current activity state</div>
+
+        <div class="state-pill" id="act-state-pill">
+          <div>
+            <div class="s-label">Detected state</div>
+            <div class="s-val" id="act-state-val">--</div>
+          </div>
+          <span style="font-size:28px" id="act-state-icon">🐷</span>
+        </div>
+
+        <div>
+          <div class="activity-bar-label">
+            <span>Activity score</span>
+            <span id="act-score-pct">-- %</span>
+          </div>
+          <div class="activity-bar">
+            <div class="activity-bar-fill" id="act-score-bar" style="width:0%;background:#2e7d32"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:2px">
+            <span>Sleeping</span><span>Low</span><span>Active</span>
+          </div>
+        </div>
+
+        <div class="score-grid">
+          <div class="score-cell">
+            <div class="sc-lbl">Pig detected</div>
+            <div class="sc-val" id="act-pig-det">--</div>
+          </div>
+          <div class="score-cell">
+            <div class="sc-lbl">Confidence</div>
+            <div class="sc-val" id="act-pig-conf">--%</div>
+          </div>
+          <div class="score-cell">
+            <div class="sc-lbl">Activity level</div>
+            <div class="sc-val" id="act-level">--</div>
+          </div>
+          <div class="score-cell">
+            <div class="sc-lbl">NH3 status</div>
+            <div class="sc-val" id="act-nh3-status">--</div>
+          </div>
+        </div>
+
+        <div style="background:#f5f8f5;border-radius:8px;padding:10px 12px;font-size:12px;color:#555;line-height:1.6" id="act-interpret">
+          Waiting for data from sensor...
+        </div>
+      </div>
+    </div>
+
+    <!-- Activity timeline -->
+    <div class="sec">
+      <div class="st">Activity timeline — last 20 events</div>
+      <div class="timeline" id="act-timeline">
+        <div style="color:#aaa;font-size:13px;padding:12px 0">No events yet...</div>
+      </div>
+    </div>
+
+    <!-- State reference -->
+    <div class="sec">
+      <div class="st">Activity state reference guide</div>
+      <table>
+        <thead>
+          <tr><th>State</th><th>Score range</th><th>What it means</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge bs">ACTIVE</span></td>
+            <td>≥ 0.60</td>
+            <td>Normal movement, feeding or walking around pen</td>
+            <td>Normal monitoring</td>
+          </tr>
+          <tr>
+            <td><span class="badge bi">SLEEPING</span></td>
+            <td>0.25 – 0.60, temp ≤ 40C</td>
+            <td>Resting — low activity, temperature normal</td>
+            <td>Normal — no action needed</td>
+          </tr>
+          <tr>
+            <td><span class="badge bi">DEEP_SLEEP</span></td>
+            <td>&lt; 0.25, temp ≤ 39.5C</td>
+            <td>Deep rest phase — very little movement</td>
+            <td>Normal — check again in 30 min</td>
+          </tr>
+          <tr>
+            <td><span class="badge bw">LETHARGIC</span></td>
+            <td>Low score, high temp or NH3</td>
+            <td>Abnormally inactive — possible illness or distress</td>
+            <td>Inspect pig, check ventilation</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ THERMAL TAB ═══════════════════════════ -->
+  <div class="pg" id="thermal">
+    <div class="sec">
+      <div class="st">Live thermal feed - MLX90640BAB real time</div>
+      <canvas id="tc2" class="th" width="640" height="220"></canvas>
+      <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:#888">
+        <span>25C cool</span>
+        <div style="flex:1;height:6px;margin:4px 10px 0;border-radius:3px;background:linear-gradient(to right,#2166ac,#4dac26,#ffffbf,#f4a582,#b2182b)"></div>
+        <span>42C hot</span>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="st">Temperature reference guide</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="ref-row"><div class="ref-dot" style="background:#4dac26"></div><span>Normal pig body temperature: 38.5C - 40.0C</span></div>
+        <div class="ref-row"><div class="ref-dot" style="background:#f4a582"></div><span>Elevated temperature: 40.0C - 40.5C — monitor closely</span></div>
+        <div class="ref-row"><div class="ref-dot" style="background:#b2182b"></div><span>Fever detected: above 40.5C — possible swine flu</span></div>
+        <div class="ref-row"><div class="ref-dot" style="background:#2166ac"></div><span>Cool background: below 36C — environment temperature</span></div>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="st">Camera view with heat detection boxes</div>
+      <div id="cam-status" style="color:#777;font-size:13px;margin-bottom:8px">Loading camera...</div>
+      <img id="cam-img" style="width:100%;border-radius:8px;border:1px solid #dde8dd;display:none" alt="Live camera feed">
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ AMMONIA TAB ═══════════════════════════ -->
+  <div class="pg" id="ammonia">
+    <div class="sec">
+      <div style="background:#e3f2fd;border:1px solid #90caf9;border-radius:8px;padding:10px 12px;font-size:13px;color:#0d47a1;margin-bottom:14px">
+        Simulation mode active. Real sensor: connect MQ-135 ammonia sensor to Raspberry Pi GPIO ADC pin and replace simulated values with real ADC readings.
+      </div>
+      <div class="st">Ammonia level - MQ-135 sensor (simulated)</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px">
+        <div style="background:#f5f8f5;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:#777;margin-bottom:4px">Current level</div>
+          <div style="font-size:26px;font-weight:600" id="nh3-big">-- ppm</div>
+        </div>
+        <div style="background:#f5f8f5;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:#777;margin-bottom:4px">Status</div>
+          <div style="font-size:16px;font-weight:600;color:#2e7d32" id="nh3-status">Safe</div>
+        </div>
+        <div style="background:#f5f8f5;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:#777;margin-bottom:4px">24h average</div>
+          <div style="font-size:26px;font-weight:600" id="nh3-avg">-- ppm</div>
+        </div>
+        <div style="background:#f5f8f5;border-radius:8px;padding:12px">
+          <div style="font-size:11px;color:#777;margin-bottom:4px">Peak today</div>
+          <div style="font-size:26px;font-weight:600" id="nh3-peak">-- ppm</div>
+        </div>
+      </div>
+      <div class="gauge-bar" style="height:12px">
+        <div class="gauge-fill" id="nh3b2" style="width:0%;background:#2e7d32"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:#888;margin-bottom:14px">
+        <span>0 ppm</span><span style="color:#2e7d32">25 safe</span><span style="color:#e65100">35 warn</span><span>50 ppm</span>
+      </div>
+    </div>
+    <div class="sec">
+      <div class="st">Ammonia trend - last readings</div>
+      <div style="height:180px"><canvas id="nh3chart"></canvas></div>
+    </div>
+    <div class="sec">
+      <div class="st">Ammonia health guide for pigs</div>
+      <table>
+        <thead>
+          <tr><th>Level</th><th>Range</th><th>Effect on pigs</th><th>Action needed</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><span class="badge bs">Safe</span></td><td>0 - 25 ppm</td><td>No effect on health</td><td>Normal operation</td></tr>
+          <tr><td><span class="badge bw">Warning</span></td><td>25 - 35 ppm</td><td>Respiratory irritation, reduced feed intake</td><td>Improve ventilation</td></tr>
+          <tr><td><span class="badge bd">Danger</span></td><td>35 - 50 ppm</td><td>Eye irritation, reduced growth rate</td><td>Immediate ventilation</td></tr>
+          <tr><td><span class="badge" style="background:#3e2020;color:#ff8a80">Critical</span></td><td>above 50 ppm</td><td>Serious lung damage possible</td><td>Evacuate and treat</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ PIG STATUS TAB ═══════════════════════════ -->
+  <div class="pg" id="pigs">
+    <div class="sec">
+      <div class="st">Individual pig health status</div>
+      <div style="background:#e8f5e9;border:1px solid #a5d6a7;border-radius:8px;padding:10px 12px;font-size:13px;color:#1b5e20;margin-bottom:12px">
+        Number of pigs is configured manually in the system settings. The thermal sensor detects hot zones in the pen and the ML model analyzes temperature patterns.
+      </div>
+      <div id="pig-detail"></div>
+    </div>
+    <div class="sec">
+      <div class="st">Pen health overview</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+        <div style="background:#e8f5e9;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:28px;font-weight:600;color:#2e7d32" id="count-normal">--</div>
+          <div style="font-size:12px;color:#555">Normal</div>
+        </div>
+        <div style="background:#fff3e0;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:28px;font-weight:600;color:#e65100" id="count-elevated">--</div>
+          <div style="font-size:12px;color:#555">Elevated</div>
+        </div>
+        <div style="background:#ffebee;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:28px;font-weight:600;color:#c62828" id="count-fever">--</div>
+          <div style="font-size:12px;color:#555">Fever</div>
+        </div>
+        <div style="background:#f5f8f5;border-radius:8px;padding:12px;text-align:center">
+          <div style="font-size:28px;font-weight:600;color:#1a1a1a" id="count-total">--</div>
+          <div style="font-size:12px;color:#555">Total pigs</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ HISTORY TAB ═══════════════════════════ -->
+  <div class="pg" id="history">
+    <div class="sec">
+      <div class="st">Temperature and ammonia log</div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Time</th><th>Max temp</th><th>Avg temp</th><th>Ammonia</th><th>Risk</th><th>Hot zone</th><th>Activity</th><th>Status</th></tr>
+          </thead>
+          <tbody id="htbl">
+            <tr><td colspan="9" style="color:#777;text-align:center;padding:20px">Loading data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var PIG_COUNT = 5;
+var nh3History = [];
+var nh3Labels = [];
+var nh3Peak = 0;
+var nh3Sum = 0;
+var nh3Count = 0;
+var nh3ChartObj = null;
+var histLog = [];
+
+// Activity timeline entries
+var actTimeline = [];
+
+function clk(){
+  document.getElementById("clk").textContent = new Date().toLocaleTimeString();
+}
+clk();
+setInterval(clk, 1000);
+
+document.getElementById("cam-img").src = "/video_feed";
+document.getElementById("cam-img").style.display = "block";
+document.getElementById("act-cam-img").src = "/video_feed";
+document.getElementById("act-cam-img").style.display = "block";
+document.getElementById("act-cam-placeholder").style.display = "none";
+
+function go(btn, id){
+  document.querySelectorAll(".pg").forEach(function(p){p.classList.remove("on");});
+  document.querySelectorAll(".tab").forEach(function(b){b.classList.remove("active");});
+  document.getElementById(id).classList.add("on");
+  btn.classList.add("active");
+  if(id === "ammonia") setTimeout(initNh3Chart, 60);
+}
+
+function tColor(t){
+  var r = Math.max(0, Math.min(1, (t-25)/17));
+  var s = [[0,33,102,172],[.25,77,172,38],[.5,255,255,191],[.75,244,165,130],[1,178,24,43]];
+  var lo = s[0], hi = s[s.length-1];
+  for(var i=0; i<s.length-1; i++){
+    if(r >= s[i][0] && r <= s[i+1][0]){lo = s[i]; hi = s[i+1]; break;}
+  }
+  var f = hi[0]===lo[0] ? 0 : (r-lo[0])/(hi[0]-lo[0]);
+  return [lo[1]+(hi[1]-lo[1])*f, lo[2]+(hi[2]-lo[2])*f, lo[3]+(hi[3]-lo[3])*f].map(Math.round);
+}
+
+function drawThermal(id, W, H, frame){
+  var c = document.getElementById(id);
+  if(!c) return;
+  var ctx = c.getContext("2d");
+  var rows = 24, cols = 32, cw = W/cols, ch = H/rows;
+  ctx.clearRect(0,0,W,H);
+  for(var r=0; r<rows; r++){
+    for(var col=0; col<cols; col++){
+      var t;
+      if(frame && frame.length){
+        t = frame[r][col];
+      } else {
+        t = 25 + Math.random()*3;
+        if(r>=4&&r<=10&&col>=2&&col<=9) t = 38.5 + Math.random()*1;
+        if(r>=4&&r<=10&&col>=12&&col<=19) t = 38.5 + Math.random()*1;
+        if(r>=14&&r<=20&&col>=2&&col<=9) t = 38.5 + Math.random()*1;
+        if(r>=14&&r<=20&&col>=22&&col<=29) t = 38.5 + Math.random()*1;
+      }
+      var rgb = tColor(t);
+      ctx.fillStyle = "rgb("+rgb[0]+","+rgb[1]+","+rgb[2]+")";
+      ctx.fillRect(Math.round(col*cw), Math.round(r*ch), Math.ceil(cw)+1, Math.ceil(ch)+1);
+    }
+  }
+}
+
+function initNh3Chart(){
+  if(nh3ChartObj) return;
+  var el = document.getElementById("nh3chart");
+  if(!el) return;
+  nh3ChartObj = new Chart(el,{
+    type:"line",
+    data:{
+      labels: nh3Labels,
+      datasets:[{
+        label:"NH3 ppm",
+        data: nh3History,
+        borderColor:"#2e7d32",
+        backgroundColor:"rgba(46,125,50,0.08)",
+        tension:.4, pointRadius:3, borderWidth:2,
+        pointBackgroundColor:"#2e7d32"
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{min:0,max:50,ticks:{callback:function(v){return v+" ppm";},font:{size:10},color:"#777"},grid:{color:"#eee"}},
+        x:{ticks:{maxTicksLimit:6,font:{size:10},color:"#777"},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function getNh3Color(v){
+  return v>=35?"#c62828":v>=25?"#e65100":"#2e7d32";
+}
+
+// ─── Activity tracker helpers ────────────────────────────────────────────────
+var STATE_META = {
+  "ACTIVE"    : {icon:"🏃", cls:"active-state",   color:"#2e7d32", label:"Active"},
+  "SLEEPING"  : {icon:"😴", cls:"sleeping-state",  color:"#1565c0", label:"Sleeping"},
+  "DEEP_SLEEP": {icon:"💤", cls:"sleeping-state",  color:"#1565c0", label:"Deep sleep"},
+  "LETHARGIC" : {icon:"🤒", cls:"lethargic-state", color:"#e65100", label:"Lethargic"},
+  "FEVER"     : {icon:"🌡️", cls:"fever-state",     color:"#c62828", label:"Fever"},
+  "NO_PIG"    : {icon:"🔍", cls:"",                color:"#777",    label:"No pig"}
+};
+
+function getStateMeta(s){
+  return STATE_META[s] || {icon:"🐷", cls:"", color:"#1a1a1a", label: s || "--"};
+}
+
+function interpretState(state, score, maxTemp, nh3){
+  if(!state) return "Waiting for sensor data...";
+  var m = {
+    "ACTIVE"    : "Pig is moving normally. Activity score "+score+" indicates healthy movement in the pen.",
+    "SLEEPING"  : "Pig is resting. Temperature ("+maxTemp+"C) and ammonia ("+nh3+" ppm) are normal — this is natural behaviour.",
+    "DEEP_SLEEP": "Pig is in deep rest. Very little movement detected. Temperature and environment are normal.",
+    "LETHARGIC" : "⚠️ Pig is abnormally inactive. Temperature "+maxTemp+"C or ammonia "+nh3+" ppm may be causing distress. Inspect the pen.",
+    "NO_PIG"    : "No pig detected in thermal frame. Check sensor alignment or if pigs have moved to another area."
+  };
+  return m[state] || "State: "+state;
+}
+
+function addTimelineEvent(state, score, maxTemp, status){
+  var meta = getStateMeta(state);
+  var dotColor = meta.color;
+  var time = new Date().toLocaleTimeString();
+  var msg = meta.label+" — score "+score+", temp "+maxTemp+"C";
+  if(status && status !== "NORMAL" && status !== "NO_PIG") msg += " — health: "+status;
+  actTimeline.unshift({time:time, msg:msg, color:dotColor});
+  if(actTimeline.length > 20) actTimeline.pop();
+}
+
+function renderTimeline(){
+  var el = document.getElementById("act-timeline");
+  if(!el) return;
+  if(!actTimeline.length){
+    el.innerHTML = '<div style="color:#aaa;font-size:13px;padding:12px 0">No events yet...</div>';
+    return;
+  }
+  el.innerHTML = actTimeline.map(function(e){
+    return '<div class="tl-row">'
+      + '<div class="tl-dot" style="background:'+e.color+'"></div>'
+      + '<div class="tl-time">'+e.time+'</div>'
+      + '<div class="tl-msg">'+e.msg+'</div>'
+      + '</div>';
+  }).join("");
+}
+
+// Track last state to only add timeline event on change
+var lastActivityState = null;
+
+function updateActivityTab(d){
+  var state = d.activity_state || "ACTIVE";
+  var score = d.activity_score !== undefined ? d.activity_score : 0;
+  var pigStatus = d.pig_status || "--";
+  var pigConf = d.pig_confidence !== undefined ? d.pig_confidence : 0;
+  var actLevel = d.activity || "--";
+  var nh3Status = d.nh3_status || "--";
+  var maxTemp = d.max_temp || 0;
+  var nh3 = d.nh3_ppm || 0;
+  var healthStatus = d.status || "NORMAL";
+
+  var meta = getStateMeta(state);
+
+  // Alert bar
+  var actAlert = document.getElementById("act-alert");
+  var actMsg   = document.getElementById("act-msg");
+  if(actAlert && actMsg){
+    if(state === "LETHARGIC" || healthStatus === "FEVER"){
+      actAlert.className = "alert danger";
+      actMsg.textContent = "ig appears lethargic or feverish — inspect immediately";
+    } else if(state === "SLEEPING" || state === "DEEP_SLEEP"){
+      actAlert.className = "alert info";
+      actMsg.textContent = "Pig is resting normally — activity score "+Math.round(score*100)+"%";
+    } else if(pigStatus === "NO_PIG_DETECTED"){
+      actAlert.className = "alert warning";
+      actMsg.textContent = "No pig detected in thermal frame";
+    } else {
+      actAlert.className = "alert success";
+      actMsg.textContent = " Pig active and healthy — activity score "+Math.round(score*100)+"%";
+    }
+  }
+
+  // State pill
+  var pill = document.getElementById("act-state-pill");
+  var stateVal = document.getElementById("act-state-val");
+  var stateIcon = document.getElementById("act-state-icon");
+  if(pill){ pill.className = "state-pill " + meta.cls; }
+  if(stateVal){ stateVal.textContent = meta.label; stateVal.style.color = meta.color; }
+  if(stateIcon){ stateIcon.textContent = meta.icon; }
+
+  // Cam state badge
+  var camBadge = document.getElementById("cam-state-badge");
+  if(camBadge){
+    camBadge.textContent = meta.icon + " " + meta.label.toUpperCase();
+    camBadge.className = "cam-badge " + (state === "LETHARGIC" ? "warn" : "");
+  }
+
+  // Activity score bar
+  var scorePct = Math.round(score * 100);
+  var barColor = score >= 0.6 ? "#2e7d32" : score >= 0.25 ? "#1565c0" : "#e65100";
+  var barEl = document.getElementById("act-score-bar");
+  var scorePctEl = document.getElementById("act-score-pct");
+  if(barEl){ barEl.style.width = scorePct + "%"; barEl.style.background = barColor; }
+  if(scorePctEl){ scorePctEl.textContent = scorePct + "%"; }
+
+  // Score grid cells
+  var el;
+  el = document.getElementById("act-pig-det");
+  if(el){
+    if(pigStatus === "PIG_DETECTED") el.textContent = "Yes";
+    else if(pigStatus === "PIG_POSSIBLE") el.textContent = "Maybe";
+    else el.textContent = "No";
+    el.style.color = pigStatus === "PIG_DETECTED" ? "#2e7d32" : pigStatus === "PIG_POSSIBLE" ? "#e65100" : "#777";
+  }
+  el = document.getElementById("act-pig-conf");
+  if(el){ el.textContent = pigConf + "%"; }
+  el = document.getElementById("act-level");
+  if(el){
+    el.textContent = actLevel;
+    el.style.color = actLevel === "HIGH" ? "#2e7d32" : actLevel === "MODERATE" ? "#e65100" : "#1565c0";
+  }
+  el = document.getElementById("act-nh3-status");
+  if(el){
+    el.textContent = nh3Status;
+    el.style.color = nh3Status === "DANGER" ? "#c62828" : nh3Status === "WARNING" ? "#e65100" : "#2e7d32";
+  }
+
+  // Interpretation text
+  el = document.getElementById("act-interpret");
+  if(el){ el.textContent = interpretState(state, scorePct+"%", maxTemp, Math.round(nh3)); }
+
+  // Timeline: add event only when state changes
+  if(state !== lastActivityState){
+    addTimelineEvent(state, scorePct+"%", maxTemp, healthStatus);
+    lastActivityState = state;
+  }
+  renderTimeline();
+}
+
+// ─── Main update function ─────────────────────────────────────────────────────
+function updateAll(d){
+  var max_temp   = d.max_temp   || 0;
+  var avg_temp   = d.avg_temp   || 0;
+  var fever_risk = d.fever_risk || 0;
+  var status     = d.status     || "NORMAL";
+  var trend      = d.trend      || "Stable";
+  var hot_zone   = d.hot_zone   || "--";
+
+  // Use nh3_ppm from backend if available; otherwise simulate
+  var nh3;
+  if(d.nh3_ppm !== undefined && d.nh3_ppm !== null){
+    nh3 = Math.round(d.nh3_ppm);
+  } else {
+    if(status === "FEVER")         nh3 = Math.round(30 + Math.random()*15);
+    else if(status === "ELEVATED") nh3 = Math.round(20 + Math.random()*10);
+    else                           nh3 = Math.round(10 + Math.random()*15);
+  }
+
+  nh3Sum += nh3;
+  nh3Count++;
+  if(nh3 > nh3Peak) nh3Peak = nh3;
+
+  // ── Alert bar (overview) ──
+  var sc = status==="FEVER"?"danger":status==="ELEVATED"?"warning":status==="NO_PIG"?"info":"success";
+  var bar = document.getElementById("abar");
+  var msg = document.getElementById("amsg");
+  if(bar) bar.className = "alert " + sc;
+  if(msg){
+    if(status === "NO_PIG")         msg.textContent = "🔍 No pig detected in thermal frame — waiting";
+    else if(status === "FEVER")     msg.textContent = "🌡️ Fever detected — " + max_temp + "C — Possible swine flu — Zone: " + hot_zone;
+    else if(status === "ELEVATED")  msg.textContent = "⚠️ Elevated temperature — " + max_temp + "C — Monitor pig closely";
+    else                            msg.textContent = "✅ All pigs healthy — Max: " + max_temp + "C — Ammonia: " + nh3 + " ppm";
+  }
+
+  // ── Overview cards ──
+  var el;
+  el=document.getElementById("vmax"); if(el){el.textContent=max_temp+"C";el.className="cval "+sc;}
+  el=document.getElementById("vavg"); if(el) el.textContent=avg_temp+"C";
+  el=document.getElementById("vpigs"); if(el) el.textContent=PIG_COUNT+" pigs configured";
+  el=document.getElementById("vnh3");
+  if(el){el.textContent=nh3+" ppm";el.className="cval "+(nh3>=35?"danger":nh3>=25?"warning":"success");}
+  el=document.getElementById("vrisk"); if(el){el.textContent=fever_risk+"%";el.className="cval "+sc;}
+  el=document.getElementById("vtrend"); if(el) el.textContent=trend;
+  el=document.getElementById("vzone"); if(el) el.textContent=hot_zone;
+
+  // ── Overview pig detection + activity state ──
+  var vpig = document.getElementById("vpig");
+  var vpigconf = document.getElementById("vpigconf");
+  var vactstate = document.getElementById("vactstate");
+  if(vpig && d.pig_status){
+    if(d.pig_status === "NO_PIG_DETECTED"){ vpig.textContent="No pig"; vpig.className="cval"; vpig.style.color="#777"; }
+    else if(d.pig_status === "PIG_POSSIBLE"){ vpig.textContent="Possible"; vpig.className="cval warning"; vpig.style.color=""; }
+    else { vpig.textContent="Detected"; vpig.className="cval success"; vpig.style.color=""; }
+  }
+  if(vpigconf && d.pig_confidence !== undefined) vpigconf.textContent = d.pig_confidence + "% confidence";
+  if(vactstate && d.activity_state){
+    var stateMeta = getStateMeta(d.activity_state);
+    vactstate.textContent = stateMeta.label;
+    vactstate.style.color = stateMeta.color;
+  }
+
+  // ── NH3 gauges ──
+  var pct = Math.min(100,(nh3/50)*100);
+  var nhc = getNh3Color(nh3);
+  el=document.getElementById("nh3v"); if(el) el.textContent=nh3+" ppm";
+  el=document.getElementById("nh3b"); if(el){el.style.width=pct+"%";el.style.background=nhc;}
+  el=document.getElementById("nh3-big"); if(el) el.textContent=nh3+" ppm";
+  el=document.getElementById("nh3-avg"); if(el) el.textContent=(nh3Count>0?Math.round(nh3Sum/nh3Count):0)+" ppm";
+  el=document.getElementById("nh3-peak"); if(el) el.textContent=nh3Peak+" ppm";
+  el=document.getElementById("nh3b2"); if(el){el.style.width=pct+"%";el.style.background=nhc;}
+  el=document.getElementById("nh3-status");
+  if(el){
+    if(nh3>=35){el.textContent="Danger";el.style.color="#c62828";}
+    else if(nh3>=25){el.textContent="Warning";el.style.color="#e65100";}
+    else{el.textContent="Safe";el.style.color="#2e7d32";}
+  }
+
+  // NH3 chart
+  nh3History.push(nh3);
+  nh3Labels.push(new Date().toLocaleTimeString());
+  if(nh3History.length>25){nh3History.shift();nh3Labels.shift();}
+  if(nh3ChartObj){
+    nh3ChartObj.data.labels=[...nh3Labels];
+    nh3ChartObj.data.datasets[0].data=[...nh3History];
+    nh3ChartObj.update("none");
+  }
+
+  // ── Pig rows ──
+  var pigs = [];
+  var pens = ["Pen A","Pen A","Pen B","Pen B","Pen C"];
+  var nOk=0, nEl=0, nFv=0;
+  for(var i=0; i<PIG_COUNT; i++){
+    var pt = parseFloat((avg_temp-0.5+Math.random()).toFixed(1));
+    var ps = pt>=40.5?"FEVER":pt>=40.0?"ELEVATED":"NORMAL";
+    if(i===0 && status==="FEVER"){pt=parseFloat(max_temp);ps="FEVER";}
+    if(ps==="FEVER")nFv++;
+    else if(ps==="ELEVATED")nEl++;
+    else nOk++;
+    pigs.push({name:"Pig "+(i+1),pen:pens[i]||"Pen A",temp:pt,nh3:nh3,status:ps});
+  }
+  el=document.getElementById("count-normal"); if(el) el.textContent=nOk;
+  el=document.getElementById("count-elevated"); if(el) el.textContent=nEl;
+  el=document.getElementById("count-fever"); if(el) el.textContent=nFv;
+  el=document.getElementById("count-total"); if(el) el.textContent=PIG_COUNT;
+
+  var pigHtml="";
+  pigs.forEach(function(p){
+    var pb=p.status==="FEVER"?"bd":p.status==="ELEVATED"?"bw":"bs";
+    var tc=p.status==="FEVER"?"#c62828":p.status==="ELEVATED"?"#e65100":"#2e7d32";
+    pigHtml+="<div class='pig-row'><div style='display:flex;align-items:center;gap:10px'>";
+    pigHtml+="<div class='pig-icon'>🐷</div><div>";
+    pigHtml+="<div style='font-weight:600;font-size:13px'>"+p.name+"</div>";
+    pigHtml+="<div style='font-size:11px;color:#777'>"+p.pen+"</div></div></div>";
+    pigHtml+="<div style='display:flex;align-items:center;gap:10px'><div style='text-align:right'>";
+    pigHtml+="<div style='font-size:13px;font-weight:600;color:"+tc+"'>"+p.temp+"C</div>";
+    pigHtml+="<div style='font-size:11px;color:#777'>NH3: "+p.nh3+" ppm</div></div>";
+    pigHtml+="<span class='badge "+pb+"'>"+p.status+"</span></div></div>";
+  });
+  el=document.getElementById("pig-summary"); if(el) el.innerHTML=pigHtml;
+  el=document.getElementById("pig-detail"); if(el) el.innerHTML=pigHtml;
+
+  // ── History log ──
+  var _now = new Date();
+  histLog.push({
+    date:_now.toLocaleDateString(undefined,{month:"short",day:"2-digit",year:"numeric"}),
+    time:_now.toLocaleTimeString(),
+    max:max_temp, avg:avg_temp, nh3:nh3,
+    risk:fever_risk, zone:hot_zone,
+    activity: d.activity_state || "--",
+    status:status
+  });
+  if(histLog.length>50) histLog.shift();
+  var tbody=document.getElementById("htbl");
+  if(tbody && histLog.length){
+    var rows=histLog.slice(-30).reverse().map(function(h){
+      var bc=h.status==="FEVER"?"bd":h.status==="ELEVATED"?"bw":"bs";
+      var nhc=h.nh3>=35?"#c62828":h.nh3>=25?"#e65100":"#2e7d32";
+      var actMeta = getStateMeta(h.activity);
+      return "<tr>"
+        +"<td style='color:#777;white-space:nowrap'>"+h.date+"</td>"
+        +"<td style='color:#777;white-space:nowrap'>"+h.time+"</td>"
+        +"<td>"+h.max+"C</td>"
+        +"<td>"+h.avg+"C</td>"
+        +"<td style='color:"+nhc+";font-weight:600'>"+h.nh3+" ppm</td>"
+        +"<td>"+h.risk+"%</td>"
+        +"<td>"+h.zone+"</td>"
+        +"<td style='color:"+actMeta.color+";font-weight:600'>"+actMeta.label+"</td>"
+        +"<td><span class='badge "+bc+"'>"+h.status+"</span></td>"
+        +"</tr>";
+    }).join("");
+    tbody.innerHTML=rows;
+  }
+
+  // ── Thermal canvases ──
+  if(d.frame && d.frame.length){
+    drawThermal("tc",320,120,d.frame);
+    drawThermal("tc2",640,220,d.frame);
+  } else {
+    drawThermal("tc",320,120,null);
+    drawThermal("tc2",640,220,null);
+  }
+
+  // ── Update activity tracker tab ──
+  updateActivityTab(d);
+}
+
+
+
+// ─── Data fetch ───────────────────────────────────────────────────────────────
+function fetchData(){
+  fetch("/api/data").then(function(r){return r.json();}).then(function(d){
+    updateAll(d);
+  }).catch(function(e){console.warn("[data]",e);});
+}
+
+fetchData();
+setInterval(fetchData, 1000);
+
+
+</script>
+</body>
+</html>
